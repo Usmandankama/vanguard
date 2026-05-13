@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:vanguard/controllers/home_controller.dart';
@@ -9,196 +10,103 @@ class HomeScreen extends GetView<HomeController> {
 
   @override
   Widget build(BuildContext context) {
-    // Inject the controller
-    Get.put(HomeController());
+    Get.find<HomeController>();
+
+    final sw = MediaQuery.of(context).size.width;
+    final sh = MediaQuery.of(context).size.height;
+    final top = MediaQuery.of(context).padding.top;
 
     return Scaffold(
       backgroundColor: AppTheme.oledBlack,
       body: Stack(
         children: [
-          // 1. BASE LAYER: OSM MAP
-                  Obx(() => controller.isLoadingLocation.value
-              ? const Center(child: CircularProgressIndicator(color: AppTheme.sosCrimson))
-              : controller.currentPosition.value == null
-                  ? const Center(child: Text("Unable to get location", style: TextStyle(color: Colors.white)))
-                  : FlutterMap(
-                      options: MapOptions(
-                        initialCenter: controller.currentPosition.value!,
-                        initialZoom: 15.0,
-                        interactionOptions: const InteractionOptions(
-                          flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-                        ),
-                        minZoom: 13.0,
-                        maxZoom: 18.0,
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.vanguardnet.app',
-                          maxZoom: 18.0,
-                        ),
-                        // Current location marker with custom design
-                        MarkerLayer(
-                          markers: [
-                            Marker(
-                              point: controller.currentPosition.value!,
-                              width: 80,
-                              height: 80,
-                              child: Obx(() => _buildLocationMarker(controller)),
-                            ),
-                          ],
-                        ),
-                        // Accuracy circle
-                        Obx(() => controller.currentPosition.value != null && controller.isTrackingActive.value
-                            ? CircleLayer(
-                                circles: [
-                                  CircleMarker(
-                                    point: controller.currentPosition.value!,
-                                    radius: _getAccuracyRadius(controller.gpsAccuracy.value),
-                                    color: Colors.blue.withOpacity(0.1),
-                                    borderColor: Colors.blue.withOpacity(0.3),
-                                    borderStrokeWidth: 2.0,
-                                  ),
-                                ],
-                              )
-                            : const CircleLayer(circles: [])),
-                      ],
-                    )),
-
-          // 2. TOP TELEMETRY PILL
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 20,
-            left: MediaQuery.of(context).size.width * 0.05,
-            right: MediaQuery.of(context).size.width * 0.05,
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: MediaQuery.of(context).size.width * 0.04,
-                vertical: MediaQuery.of(context).size.height * 0.015,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: Colors.white24),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Obx(() => Icon(
-                            Icons.circle,
-                            color: controller.isConnected.value ? AppTheme.secureGreen : AppTheme.warningAmber,
-                            size: MediaQuery.of(context).size.width * 0.03,
-                          )),
-                      SizedBox(width: MediaQuery.of(context).size.width * 0.02),
-                      Obx(() => Text(
-                            controller.isConnected.value ? "WSS: SECURE" : "WSS: RECONNECTING",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: MediaQuery.of(context).size.width * 0.03,
-                            ),
-                          )),
-                    ],
-                  ),
-                  Obx(() => Text(
-                        controller.gpsAccuracy.value,
-                        style: TextStyle(
-                          color: controller.isTrackingActive.value ? Colors.white70 : Colors.orange,
-                          fontSize: MediaQuery.of(context).size.width * 0.03,
-                          fontWeight: controller.isTrackingActive.value ? FontWeight.normal : FontWeight.bold,
-                        ),
-                      )),
-                ],
-              ),
-            ),
-          ),
-
-          // 3. BOTTOM SLIDE-UP PANEL (Incident Feed)
-          DraggableScrollableSheet(
-            initialChildSize: 0.15,
-            minChildSize: 0.15,
-            maxChildSize: 0.6,
-            builder: (context, scrollController) {
-              return Container(
-                decoration: const BoxDecoration(
-                  color: AppTheme.surfaceDark,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                  boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 10, spreadRadius: 2)],
-                ),
-                child: ListView.builder(
-                  controller: scrollController,
-                  itemCount: 5, // Mock data
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return Padding(
-                        padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.04),
-                        child: Center(
-                          child: Container(
-                            width: MediaQuery.of(context).size.width * 0.1,
-                            height: MediaQuery.of(context).size.width * 0.01,
-                            decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
-                          ),
-                        ),
-                      );
-                    }
-                    return ListTile(
-                      leading: Icon(Icons.warning_amber_rounded, color: AppTheme.warningAmber, size: MediaQuery.of(context).size.width * 0.06),
-                      title: Text("Medical Emergency", style: TextStyle(color: Colors.white, fontSize: MediaQuery.of(context).size.width * 0.04)),
-                      subtitle: Text("2.4 km away • 1m ago", style: TextStyle(color: Colors.white70, fontSize: MediaQuery.of(context).size.width * 0.035)),
-                      trailing: TextButton(
-                        onPressed: () {},
-                        child: Text("RESPOND", style: TextStyle(fontSize: MediaQuery.of(context).size.width * 0.035)),
-                      ),
-                    );
-                  },
+          // ─── 1. BASE MAP ────────────────────────────────────────────────
+          Obx(() {
+            if (controller.isLoadingLocation.value) {
+              return const Center(
+                child: CircularProgressIndicator(color: AppTheme.sosCrimson),
+              );
+            }
+            if (controller.currentPosition.value == null) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.location_off_rounded,
+                        color: Colors.white38, size: sw * 0.12),
+                    SizedBox(height: sh * 0.02),
+                    Text(
+                      'Unable to acquire location',
+                      style: TextStyle(
+                          color: Colors.white38, fontSize: sw * 0.04),
+                    ),
+                  ],
                 ),
               );
-            },
+            }
+            return FlutterMap(
+              options: MapOptions(
+                initialCenter: controller.currentPosition.value!,
+                initialZoom: 15.0,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                ),
+                minZoom: 13.0,
+                maxZoom: 18.0,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.vanguardnet.app',
+                  maxZoom: 18.0,
+                ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: controller.currentPosition.value!,
+                      width: 80,
+                      height: 80,
+                      child: Obx(() => _buildLocationMarker(controller)),
+                    ),
+                  ],
+                ),
+                Obx(() =>
+                    controller.currentPosition.value != null &&
+                            controller.isTrackingActive.value
+                        ? CircleLayer(
+                            circles: [
+                              CircleMarker(
+                                point: controller.currentPosition.value!,
+                                radius:
+                                    _getAccuracyRadius(controller.gpsAccuracy.value),
+                                color: Colors.blue.withOpacity(0.07),
+                                borderColor: Colors.blue.withOpacity(0.25),
+                                borderStrokeWidth: 1.5,
+                              ),
+                            ],
+                          )
+                        : const CircleLayer(circles: [])),
+              ],
+            );
+          }),
+
+          // ─── 2. TOP TELEMETRY BAR ───────────────────────────────────────
+          Positioned(
+            top: top + 16,
+            left: sw * 0.04,
+            right: sw * 0.04,
+            child: _TelemetryBar(controller: controller, sw: sw),
           ),
 
-          // 4. THE PULSE BUTTON (Center-Bottom)
+
+          // ─── 4. SOS LONG-PRESS BUTTON ────────────────────────────────────
           Positioned(
-            bottom: MediaQuery.of(context).size.height * 0.15,
+            bottom: sh * 0.08,
             left: 0,
             right: 0,
-            child: GestureDetector(
-              onTapDown: (_) => controller.setPressingSOS(true),
-              onTapUp: (_) => controller.setPressingSOS(false),
-              onTapCancel: () => controller.setPressingSOS(false),
-              onLongPress: controller.triggerEmergencyBroadcast,
-              child: Center(
-                child: Obx(() => AnimatedScale(
-                      scale: controller.isPressingSOS.value ? 0.9 : 1.0,
-                      duration: const Duration(milliseconds: 150),
-                      child: Container(
-                        width: MediaQuery.of(context).size.width * 0.25,
-                        height: MediaQuery.of(context).size.width * 0.25,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppTheme.sosCrimson,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.redAccent.withOpacity(0.5),
-                              blurRadius: 20,
-                              spreadRadius: controller.isPressingSOS.value ? 5 : 10,
-                            )
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            "SOS",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: MediaQuery.of(context).size.width * 0.06,
-                              letterSpacing: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-                    )),
-              ),
+            child: Center(
+              child: _SOSButton(controller: controller, sw: sw),
             ),
           ),
         ],
@@ -206,72 +114,296 @@ class HomeScreen extends GetView<HomeController> {
     );
   }
 
-  // Custom location marker widget
   Widget _buildLocationMarker(HomeController controller) {
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.4),
-            blurRadius: 8,
-            spreadRadius: 2,
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.blue.withOpacity(0.15),
+            border: Border.all(color: Colors.blue.withOpacity(0.6), width: 1.5),
           ),
-        ],
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Outer pulsing circle
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.blue.withOpacity(0.2),
-              border: Border.all(color: Colors.blue, width: 2),
-            ),
+        ),
+        Container(
+          width: 18,
+          height: 18,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.blue,
           ),
-          // Inner solid circle
-          Container(
-            width: 20,
-            height: 20,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.blue,
-            ),
-            child: const Icon(
-              Icons.location_on_rounded,
-              color: Colors.white,
-              size: 12,
-            ),
-          ),
-          // Direction indicator (shows heading)
-          if (controller.heading.value > 0)
-            Positioned(
-              top: 2,
-              child: Transform.rotate(
-                angle: controller.heading.value * 3.14159 / 180,
-                child: const Icon(
-                  Icons.north_rounded,
+          child: const Icon(Icons.my_location_rounded,
+              color: Colors.white, size: 11),
+        ),
+        if (controller.heading.value > 0)
+          Positioned(
+            top: 4,
+            child: Transform.rotate(
+              angle: controller.heading.value * 3.14159265 / 180,
+              child: Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
                   color: Colors.white,
-                  size: 8,
                 ),
               ),
             ),
+          ),
+      ],
+    );
+  }
+
+  double _getAccuracyRadius(String accuracy) {
+    try {
+      return double.parse(accuracy.replaceAll(RegExp(r'[^\d.]'), ''));
+    } catch (_) {
+      return 10.0;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TELEMETRY BAR
+// ─────────────────────────────────────────────────────────────────────────────
+class _TelemetryBar extends StatelessWidget {
+  final HomeController controller;
+  final double sw;
+  const _TelemetryBar({required this.controller, required this.sw});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+          horizontal: sw * 0.04, vertical: sw * 0.025),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.82),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Row(
+        children: [
+          // WS status
+          Obx(() => _StatusDot(
+                active: controller.isConnected.value,
+                activeColor: AppTheme.secureGreen,
+                inactiveColor: AppTheme.warningAmber,
+              )),
+          SizedBox(width: sw * 0.02),
+          Obx(() => Text(
+                controller.isConnected.value ? 'WSS · LIVE' : 'WSS · RECONNECTING',
+                style: TextStyle(
+                  color: controller.isConnected.value
+                      ? Colors.white70
+                      : AppTheme.warningAmber,
+                  fontSize: sw * 0.028,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.6,
+                ),
+              )),
+          const Spacer(),
+          // GPS accuracy
+          Icon(Icons.gps_fixed_rounded,
+              color: Colors.white38, size: sw * 0.035),
+          SizedBox(width: sw * 0.015),
+          Obx(() => Text(
+                controller.gpsAccuracy.value,
+                style: TextStyle(
+                  color: controller.isTrackingActive.value
+                      ? Colors.white54
+                      : AppTheme.warningAmber,
+                  fontSize: sw * 0.028,
+                  fontWeight: FontWeight.w500,
+                ),
+              )),
+          SizedBox(width: sw * 0.04),
+          // Nearby responders count
+          Container(
+            padding: EdgeInsets.symmetric(
+                horizontal: sw * 0.025, vertical: sw * 0.01),
+            decoration: BoxDecoration(
+              color: AppTheme.sosCrimson.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+              border:
+                  Border.all(color: AppTheme.sosCrimson.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.people_alt_rounded,
+                    color: AppTheme.sosCrimson, size: sw * 0.03),
+                SizedBox(width: sw * 0.012),
+                Obx(() => Text(
+                      '${controller.nearbyResponderCount.value}',
+                      style: TextStyle(
+                        color: AppTheme.sosCrimson,
+                        fontSize: sw * 0.028,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    )),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
+}
 
-  // Convert GPS accuracy string to radius in meters
-  double _getAccuracyRadius(String accuracy) {
-    try {
-      // Extract numeric value from string like "±5m"
-      final numericValue = double.parse(accuracy.replaceAll(RegExp(r'[^\d.]'), ''));
-      return numericValue; // Return accuracy as radius
-    } catch (e) {
-      return 10.0; // Default 10m radius if parsing fails
-    }
+class _StatusDot extends StatelessWidget {
+  final bool active;
+  final Color activeColor;
+  final Color inactiveColor;
+  const _StatusDot(
+      {required this.active,
+      required this.activeColor,
+      required this.inactiveColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 7,
+      height: 7,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: active ? activeColor : inactiveColor,
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SOS BUTTON — long press to fire, hold-ring animation
+// ─────────────────────────────────────────────────────────────────────────────
+class _SOSButton extends StatefulWidget {
+  final HomeController controller;
+  final double sw;
+  const _SOSButton({required this.controller, required this.sw});
+
+  @override
+  State<_SOSButton> createState() => _SOSButtonState();
+}
+
+class _SOSButtonState extends State<_SOSButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _holdController;
+  bool _holding = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _holdController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    );
+    _holdController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _onSOSTrigger();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _holdController.dispose();
+    super.dispose();
+  }
+
+  void _startHold() {
+    setState(() => _holding = true);
+    HapticFeedback.mediumImpact();
+    _holdController.forward(from: 0);
+  }
+
+  void _cancelHold() {
+    setState(() => _holding = false);
+    _holdController.reverse();
+  }
+
+  void _onSOSTrigger() {
+    HapticFeedback.heavyImpact();
+    widget.controller.triggerEmergencyBroadcast();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = widget.sw * 0.26;
+
+    return GestureDetector(
+      onLongPressStart: (_) => _startHold(),
+      onLongPressEnd: (_) => _cancelHold(),
+      onLongPressCancel: _cancelHold,
+      child: SizedBox(
+        width: size + 24,
+        height: size + 24,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Hold-progress ring
+            AnimatedBuilder(
+              animation: _holdController,
+              builder: (_, __) => SizedBox(
+                width: size + 20,
+                height: size + 20,
+                child: CircularProgressIndicator(
+                  value: _holdController.value,
+                  strokeWidth: 3,
+                  backgroundColor: Colors.white.withOpacity(0.08),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    _holding
+                        ? AppTheme.sosCrimson
+                        : Colors.transparent,
+                  ),
+                ),
+              ),
+            ),
+            // Core button
+            AnimatedScale(
+              scale: _holding ? 0.92 : 1.0,
+              duration: const Duration(milliseconds: 120),
+              child: Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.sosCrimson,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.sosCrimson.withOpacity(
+                          _holding ? 0.7 : 0.45),
+                      blurRadius: _holding ? 30 : 20,
+                      spreadRadius: _holding ? 8 : 4,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'SOS',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: widget.sw * 0.065,
+                        letterSpacing: 2.5,
+                      ),
+                    ),
+                    Text(
+                      'hold to send',
+                      style: TextStyle(
+                        color: Colors.white60,
+                        fontSize: widget.sw * 0.024,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
