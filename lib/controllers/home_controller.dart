@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter/foundation.dart'; // For debugPrint
+import 'package:flutter/material.dart';
+import 'package:vanguard/screens/emergency/emergency_questionnaire_screen.dart';
+import 'package:vanguard/controllers/emergency_controller.dart';
 
 class HomeController extends GetxController {
   // Reactive State Variables (The 'Rx' types)
@@ -15,6 +18,7 @@ class HomeController extends GetxController {
   final RxString gpsAccuracy = '±0m'.obs;
   final RxDouble heading = 0.0.obs; // Device heading for marker rotation
   final RxBool isTrackingActive = false.obs;
+  final RxInt nearbyResponderCount = 0.obs; // Number of nearby responders
 
   StreamSubscription<Position>? _positionStreamSubscription;
 
@@ -129,17 +133,17 @@ class HomeController extends GetxController {
   void triggerEmergencyBroadcast() {
     HapticFeedback.vibrate();
     if (currentPosition.value != null) {
-      // TODO: Month 1 Backend Integration -> Send WSS Payload to Bun/ElysiaJS
-      debugPrint(
-        "SOS BROADCAST: ${currentPosition.value!.latitude}, ${currentPosition.value!.longitude}",
-      );
+      // Navigate to emergency questionnaire for detailed assessment
+      Get.to(() => const EmergencyQuestionnaireScreen(), binding: BindingsBuilder(() {
+        Get.find<EmergencyController>();
+      }));
+    } else {
       Get.snackbar(
-        'SOS INITIATED',
-        'Broadcasting to Vanguards within 5km...',
-        backgroundColor: const Color(0xFFD32F2F),
-        colorText: const Color(0xFFFFFFFF),
+        'Location Error',
+        'Please wait for GPS to locate you before sending emergency alert.',
+        backgroundColor: const Color(0xFFFF9800),
+        colorText: Colors.white,
         snackPosition: SnackPosition.TOP,
-        duration: const Duration(seconds: 3),
       );
     }
   }

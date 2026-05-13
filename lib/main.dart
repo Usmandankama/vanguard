@@ -2,9 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:vanguard/screens/auth/auth_screen.dart';
 import 'package:vanguard/screens/home/home_screen.dart';
+import 'package:vanguard/screens/emergency/emergency_questionnaire_screen.dart';
 import 'package:vanguard/controllers/auth_controller.dart';
+import 'package:vanguard/controllers/home_controller.dart';
+import 'package:vanguard/controllers/emergency_controller.dart';
 
 void main() {
+  // Initialize all controllers
+  Get.put(AuthController());
+  Get.put(HomeController());
+  Get.put(EmergencyController());
+  
   runApp(const MyApp());
 }
 
@@ -31,13 +39,17 @@ class MyApp extends StatelessWidget {
           name: '/auth',
           page: () => const AuthScreen(),
           binding: BindingsBuilder(() {
-            Get.put(AuthController());
+            Get.find<AuthController>();
           }),
         ),
         GetPage(
           name: '/home',
           page: () => const HomeScreen(),
           middlewares: [AuthMiddleware()],
+        ),
+        GetPage(
+          name: '/emergency-questionnaire',
+          page: () => const EmergencyQuestionnaireScreen(),
         ),
       ],
     );

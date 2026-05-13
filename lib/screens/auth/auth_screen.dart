@@ -8,8 +8,8 @@ class AuthScreen extends GetView<AuthController> {
 
   @override
   Widget build(BuildContext context) {
-    // Inject the controller
-    Get.put(AuthController());
+    // Get the controller
+    Get.find<AuthController>();
 
     return Scaffold(
       backgroundColor: AppTheme.oledBlack,
